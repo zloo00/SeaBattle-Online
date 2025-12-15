@@ -125,6 +125,12 @@ export const typeDefs = gql`
     roomId: ID!
   }
 
+  input MakeShotInput {
+    roomId: ID!
+    x: Int!
+    y: Int!
+  }
+
   type AuthPayload {
     token: String!
     user: User!
@@ -134,6 +140,8 @@ export const typeDefs = gql`
     me: User
     messages(roomId: ID!): [Message!]!
     myShips(roomId: ID!): [Ship!]!
+    shots(roomId: ID!): [Shot!]!
+    room(id: ID!): GameRoom
     getPublicRooms: [GameRoom!]!
     searchRooms(term: String!): [GameRoom!]!
     getMyRooms: [GameRoom!]!
@@ -147,9 +155,11 @@ export const typeDefs = gql`
     createRoom(input: CreateRoomInput!): GameRoom!
     joinRoom(input: JoinRoomInput!): GameRoom!
     leaveRoom(input: LeaveRoomInput!): GameRoom!
+    makeShot(input: MakeShotInput!): Shot!
   }
 
   type Subscription {
     messageAdded(roomId: ID!): Message!
+    shotFired(roomId: ID!): Shot!
   }
 `;

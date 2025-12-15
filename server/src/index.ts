@@ -10,6 +10,7 @@ import { connectToDatabase } from "./config/db";
 import { typeDefs } from "./graphql/typeDefs";
 import { resolvers } from "./graphql/resolvers";
 import { buildContext, buildWsContext } from "./graphql/context";
+import { makeExecutableSchema } from "@graphql-tools/schema";
 
 const bootstrap = async () => {
   await connectToDatabase();
@@ -22,9 +23,13 @@ const bootstrap = async () => {
 
   let serverCleanup: (() => Promise<void> | void) | undefined;
 
-  const server = new ApolloServer({
+  const schema = makeExecutableSchema({
     typeDefs,
-    resolvers,
+    resolvers
+  });
+
+  const server = new ApolloServer({
+    schema,
     context: buildContext,
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
@@ -48,7 +53,7 @@ const bootstrap = async () => {
   const wsServer = new WebSocketServer({ server: httpServer, path: "/graphql" });
   const cleanup = useServer(
     {
-      schema: (server as any).schema,
+      schema,
       context: buildWsContext
     },
     wsServer

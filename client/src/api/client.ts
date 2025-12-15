@@ -1,4 +1,4 @@
-import { AuthPayload, GameRoom, Message, PlaceShipsInput, Ship } from '../types';
+import { AuthPayload, GameRoom, Message, PlaceShipsInput, Ship, Shot } from '../types';
 import { useAuthStore } from '../store/auth';
 import { createClient } from 'graphql-ws';
 
@@ -160,6 +160,18 @@ const ROOM_FIELDS = `
   updatedAt
 `;
 
+const SHOT_FIELDS = `
+  id
+  playerId
+  roomId
+  x
+  y
+  result
+  timestamp
+  createdAt
+  updatedAt
+`;
+
 const GET_PUBLIC_ROOMS_QUERY = `
   query GetPublicRooms {
     getPublicRooms {
@@ -208,6 +220,38 @@ const LEAVE_ROOM_MUTATION = `
   }
 `;
 
+const GET_ROOM_QUERY = `
+  query Room($id: ID!) {
+    room(id: $id) {
+      ${ROOM_FIELDS}
+    }
+  }
+`;
+
+const SHOTS_QUERY = `
+  query Shots($roomId: ID!) {
+    shots(roomId: $roomId) {
+      ${SHOT_FIELDS}
+    }
+  }
+`;
+
+const MAKE_SHOT_MUTATION = `
+  mutation MakeShot($input: MakeShotInput!) {
+    makeShot(input: $input) {
+      ${SHOT_FIELDS}
+    }
+  }
+`;
+
+const SHOT_FIRED_SUBSCRIPTION = `
+  subscription OnShotFired($roomId: ID!) {
+    shotFired(roomId: $roomId) {
+      ${SHOT_FIELDS}
+    }
+  }
+`;
+
 export const register = (input: {
   username: string;
   email: string;
@@ -249,6 +293,15 @@ export const leaveRoom = (roomId: string) =>
     input: { roomId },
   });
 
+export const getRoom = (id: string) =>
+  graphqlRequest<{ room: GameRoom | null }>(GET_ROOM_QUERY, { id });
+
+export const getShots = (roomId: string) =>
+  graphqlRequest<{ shots: Shot[] }>(SHOTS_QUERY, { roomId });
+
+export const makeShot = (input: { roomId: string; x: number; y: number }) =>
+  graphqlRequest<{ makeShot: Shot }>(MAKE_SHOT_MUTATION, { input });
+
 type SubscriptionCallbacks<T> = {
   onData: (data: T) => void;
   onError?: (err: unknown) => void;
@@ -284,6 +337,31 @@ export const subscribeToMessages = (
         const payload = value.data as { messageAdded?: Message } | undefined;
         if (payload?.messageAdded) {
           onData(payload.messageAdded);
+        }
+      },
+      error: (err) => onError?.(err),
+      complete: () => onComplete?.(),
+    }
+  );
+
+  return dispose;
+};
+
+export const subscribeToShots = (
+  roomId: string,
+  { onData, onError, onComplete }: SubscriptionCallbacks<Shot>
+) => {
+  const client = getWsClient();
+  const dispose = client.subscribe(
+    {
+      query: SHOT_FIRED_SUBSCRIPTION,
+      variables: { roomId },
+    },
+    {
+      next: (value) => {
+        const payload = value.data as { shotFired?: Shot } | undefined;
+        if (payload?.shotFired) {
+          onData(payload.shotFired);
         }
       },
       error: (err) => onError?.(err),

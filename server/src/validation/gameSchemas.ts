@@ -2,12 +2,10 @@ import { z } from "zod";
 
 export const coordinateSchema = z.number().int().min(0).max(9);
 
-export const shotInputSchema = z.object({
+export const makeShotSchema = z.object({
   roomId: z.string().trim(),
-  playerId: z.string().trim(),
   x: coordinateSchema,
-  y: coordinateSchema,
-  result: z.enum(["miss", "hit", "sunk"])
+  y: coordinateSchema
 });
 
 export const shipSchema = z.object({
@@ -50,7 +48,7 @@ export const roomSearchSchema = z.object({
   term: z.string().trim().min(1).max(50)
 });
 
-export type ShotInput = z.infer<typeof shotInputSchema>;
+export type MakeShotInput = z.infer<typeof makeShotSchema>;
 export type ShipInput = z.infer<typeof shipSchema>;
 export type ShipPlacementInput = z.infer<typeof shipPlacementSchema>;
 export type PlaceShipsInput = z.infer<typeof placeShipsSchema>;

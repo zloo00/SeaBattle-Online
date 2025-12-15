@@ -28,6 +28,20 @@ export interface GameRoom {
   updatedAt: string;
 }
 
+export type ShotResult = "miss" | "hit" | "sunk";
+
+export interface Shot {
+  id: string;
+  playerId: string;
+  roomId: string;
+  x: number;
+  y: number;
+  result: ShotResult;
+  timestamp: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type ShipOrientation = "horizontal" | "vertical";
 
 export interface ShipPlacement {

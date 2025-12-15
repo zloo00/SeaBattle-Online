@@ -367,6 +367,40 @@ button:hover:not(:disabled) {
   justify-content: flex-end;
 }
 
+.battle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.board-grid.battleship-grid {
+  margin-top: 12px;
+}
+
+.shot-cell {
+  font-weight: 700;
+  color: #0f2f57;
+}
+
+.shot-cell.shot-miss {
+  background: #f4f7ff;
+  color: #8b9ab7;
+  border-color: #dee6f5;
+}
+
+.shot-cell.shot-hit {
+  background: #ffe8d2;
+  color: #d35400;
+  border-color: #ffc999;
+}
+
+.shot-cell.shot-sunk {
+  background: #ffdadf;
+  color: #b00020;
+  border-color: #ff9eab;
+}
+
 .length-row,
 .orientation-row,
 .action-row {

@@ -9,16 +9,19 @@ import { requireAuth } from "../auth/guards";
 import { GameRoom } from "../models/gameRoom";
 import { Ship } from "../models/ship";
 import { Message } from "../models/message";
+import { Shot } from "../models/shot";
 import {
   messageInputSchema,
   placeShipsSchema,
   createRoomSchema,
   joinRoomSchema,
   leaveRoomSchema,
-  roomSearchSchema
+  roomSearchSchema,
+  makeShotSchema
 } from "../validation/gameSchemas";
 import { validateShipFleet } from "../validation/shipValidation";
-import { MESSAGE_ADDED, pubsub } from "./pubsub";
+import { MESSAGE_ADDED, SHOT_FIRED, pubsub } from "./pubsub";
+import { checkHit, checkSunk, checkWin } from "../services/combat";
 
 const DateScalar = new GraphQLScalarType({
   name: "Date",
@@ -82,6 +85,35 @@ export const resolvers = {
 
       const ships = await Ship.find({ roomId: room._id, playerId: currentUser.id });
       return ships.map(mapShip);
+    },
+    shots: async (_: unknown, { roomId }: { roomId: string }, ctx: GraphQLContext) => {
+      const currentUser = requireAuth(ctx);
+      const room = await GameRoom.findById(roomId);
+      if (!room || room.isDeleted) {
+        throw new Error("Room not found");
+      }
+      const isParticipant = room.participants.some(
+        (id) => id.toString() === currentUser.id
+      );
+      if (!isParticipant) {
+        throw new Error("You are not part of this room");
+      }
+      const records = await Shot.find({ roomId: room._id }).sort({ timestamp: 1 });
+      return records.map(mapShot);
+    },
+    room: async (_: unknown, { id }: { id: string }, ctx: GraphQLContext) => {
+      const currentUser = requireAuth(ctx);
+      const room = await GameRoom.findById(id);
+      if (!room || room.isDeleted) {
+        throw new Error("Room not found");
+      }
+      const isParticipant = room.participants.some(
+        (participantId) => participantId.toString() === currentUser.id
+      );
+      if (!isParticipant) {
+        throw new Error("You are not part of this room");
+      }
+      return mapRoom(room);
     },
     getPublicRooms: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
       requireAuth(ctx);
@@ -319,6 +351,100 @@ export const resolvers = {
       });
 
       return mapRoom(room);
+    },
+    makeShot: async (_: unknown, { input }: { input: unknown }, ctx: GraphQLContext) => {
+      const currentUser = requireAuth(ctx);
+      const data = makeShotSchema.parse(input);
+
+      const room = await GameRoom.findById(data.roomId);
+      if (!room || room.isDeleted) {
+        throw new Error("Room not found");
+      }
+
+      const isParticipant = room.participants.some(
+        (id) => id.toString() === currentUser.id
+      );
+      if (!isParticipant) {
+        throw new Error("You are not part of this room");
+      }
+
+      if (room.status !== "playing") {
+        throw new Error("Game is not currently in progress");
+      }
+      if (!room.currentTurn || room.currentTurn.toString() !== currentUser.id) {
+        throw new Error("It is not your turn");
+      }
+
+      const opponentId = room.participants.find(
+        (id) => id.toString() !== currentUser.id
+      );
+      if (!opponentId) {
+        throw new Error("Waiting for an opponent");
+      }
+
+      const existingShot = await Shot.findOne({
+        roomId: room._id,
+        playerId: currentUser.id,
+        x: data.x,
+        y: data.y
+      });
+      if (existingShot) {
+        throw new Error("You have already fired at this cell");
+      }
+
+      const enemyShips = await Ship.find({ roomId: room._id, playerId: opponentId });
+      if (!enemyShips.length) {
+        throw new Error("Opponent has not placed ships yet");
+      }
+
+      const targetShip = checkHit(enemyShips, data.x, data.y);
+      let result: "miss" | "hit" | "sunk" = "miss";
+
+      if (targetShip) {
+        const updatedShip = await Ship.findByIdAndUpdate(
+          targetShip._id,
+          { $inc: { hits: 1 } },
+          { new: true }
+        );
+        if (updatedShip && checkSunk(updatedShip)) {
+          result = "sunk";
+        } else {
+          result = "hit";
+        }
+      }
+
+      const shot = await Shot.create({
+        roomId: room._id,
+        playerId: currentUser.id,
+        x: data.x,
+        y: data.y,
+        result,
+        timestamp: new Date()
+      });
+
+      let winnerDeclared = false;
+      if (result === "hit" || result === "sunk") {
+        const refreshedShips = await Ship.find({
+          roomId: room._id,
+          playerId: opponentId
+        });
+        if (checkWin(refreshedShips)) {
+          room.status = "finished";
+          room.winner = currentUser.id as any;
+          room.currentTurn = null;
+          winnerDeclared = true;
+        }
+      }
+
+      if (!winnerDeclared) {
+        room.currentTurn = opponentId as any;
+      }
+
+      await room.save();
+
+      const mapped = mapShot(shot);
+      await pubsub.publish(SHOT_FIRED, { shotFired: mapped });
+      return mapped;
     }
   },
   Subscription: {
@@ -331,6 +457,25 @@ export const resolvers = {
             throw new Error("Unauthorized");
           }
           if (payload.messageAdded.roomId !== variables.roomId) {
+            return false;
+          }
+          const room = await GameRoom.findById(variables.roomId);
+          if (!room || room.isDeleted) {
+            return false;
+          }
+          return room.participants.some((id) => id.toString() === currentUser.id);
+        }
+      )
+    },
+    shotFired: {
+      subscribe: withFilter(
+        () => pubsub.asyncIterator([SHOT_FIRED]),
+        async (payload, variables, ctx: GraphQLContext) => {
+          const currentUser = ctx.user;
+          if (!currentUser) {
+            throw new Error("Unauthorized");
+          }
+          if (payload.shotFired.roomId !== variables.roomId) {
             return false;
           }
           const room = await GameRoom.findById(variables.roomId);
@@ -378,6 +523,18 @@ const mapMessage = (message: any) => ({
   timestamp: message.timestamp,
   createdAt: message.createdAt,
   updatedAt: message.updatedAt
+});
+
+const mapShot = (shot: any) => ({
+  id: shot._id.toString(),
+  playerId: shot.playerId.toString(),
+  roomId: shot.roomId.toString(),
+  x: shot.x,
+  y: shot.y,
+  result: shot.result,
+  timestamp: shot.timestamp,
+  createdAt: shot.createdAt,
+  updatedAt: shot.updatedAt
 });
 
 const mapRoom = (room: any) => ({
