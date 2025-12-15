@@ -13,6 +13,21 @@ export interface AuthPayload {
   user: AuthUser;
 }
 
+export type GameRoomStatus = "waiting" | "placing" | "playing" | "finished";
+
+export interface GameRoom {
+  id: string;
+  name: string;
+  status: GameRoomStatus;
+  maxPlayers: number;
+  currentTurn: string | null;
+  winner: string | null;
+  participants: string[];
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type ShipOrientation = "horizontal" | "vertical";
 
 export interface ShipPlacement {

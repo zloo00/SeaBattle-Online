@@ -1,13 +1,13 @@
-import { AuthPayload, Message, PlaceShipsInput, Ship } from "../types";
-import { useAuthStore } from "../store/auth";
-import { createClient } from "graphql-ws";
+import { AuthPayload, GameRoom, Message, PlaceShipsInput, Ship } from '../types';
+import { useAuthStore } from '../store/auth';
+import { createClient } from 'graphql-ws';
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/graphql";
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/graphql';
 const WS_URL =
   import.meta.env.VITE_WS_URL ||
-  (API_URL.startsWith("https")
-    ? API_URL.replace("https", "wss")
-    : API_URL.replace("http", "ws"));
+  (API_URL.startsWith('https')
+    ? API_URL.replace('https', 'wss')
+    : API_URL.replace('http', 'ws'));
 
 type GraphQLResponse<T> = {
   data?: T;
@@ -20,12 +20,12 @@ export const graphqlRequest = async <T>(
 ): Promise<T> => {
   const token = useAuthStore.getState().token;
   const res = await fetch(API_URL, {
-    method: "POST",
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ query, variables })
+    body: JSON.stringify({ query, variables }),
   });
 
   const json = (await res.json()) as GraphQLResponse<T>;
@@ -33,7 +33,7 @@ export const graphqlRequest = async <T>(
     throw new Error(json.errors[0].message);
   }
   if (!json.data) {
-    throw new Error("No data returned");
+    throw new Error('No data returned');
   }
   return json.data;
 };
@@ -147,8 +147,72 @@ const MESSAGE_ADDED_SUBSCRIPTION = `
   }
 `;
 
-export const register = (input: { username: string; email: string; password: string }) =>
-  graphqlRequest<{ register: AuthPayload }>(REGISTER_MUTATION, { input });
+const ROOM_FIELDS = `
+  id
+  name
+  status
+  maxPlayers
+  currentTurn
+  winner
+  participants
+  isDeleted
+  createdAt
+  updatedAt
+`;
+
+const GET_PUBLIC_ROOMS_QUERY = `
+  query GetPublicRooms {
+    getPublicRooms {
+      ${ROOM_FIELDS}
+    }
+  }
+`;
+
+const SEARCH_ROOMS_QUERY = `
+  query SearchRooms($term: String!) {
+    searchRooms(term: $term) {
+      ${ROOM_FIELDS}
+    }
+  }
+`;
+
+const GET_MY_ROOMS_QUERY = `
+  query GetMyRooms {
+    getMyRooms {
+      ${ROOM_FIELDS}
+    }
+  }
+`;
+
+const CREATE_ROOM_MUTATION = `
+  mutation CreateRoom($input: CreateRoomInput!) {
+    createRoom(input: $input) {
+      ${ROOM_FIELDS}
+    }
+  }
+`;
+
+const JOIN_ROOM_MUTATION = `
+  mutation JoinRoom($input: JoinRoomInput!) {
+    joinRoom(input: $input) {
+      ${ROOM_FIELDS}
+    }
+  }
+`;
+
+const LEAVE_ROOM_MUTATION = `
+  mutation LeaveRoom($input: LeaveRoomInput!) {
+    leaveRoom(input: $input) {
+      ${ROOM_FIELDS}
+    }
+  }
+`;
+
+export const register = (input: {
+  username: string;
+  email: string;
+  password: string;
+}) => graphqlRequest<{ register: AuthPayload }>(REGISTER_MUTATION, { input });
 
 export const login = (input: { email: string; password: string }) =>
   graphqlRequest<{ login: AuthPayload }>(LOGIN_MUTATION, { input });
@@ -165,6 +229,26 @@ export const getMessages = (roomId: string) =>
 export const sendMessage = (input: { roomId: string; text: string }) =>
   graphqlRequest<{ sendMessage: Message }>(SEND_MESSAGE_MUTATION, { input });
 
+export const getPublicRooms = () =>
+  graphqlRequest<{ getPublicRooms: GameRoom[] }>(GET_PUBLIC_ROOMS_QUERY);
+
+export const searchRooms = (term: string) =>
+  graphqlRequest<{ searchRooms: GameRoom[] }>(SEARCH_ROOMS_QUERY, { term });
+
+export const getMyRooms = () =>
+  graphqlRequest<{ getMyRooms: GameRoom[] }>(GET_MY_ROOMS_QUERY);
+
+export const createRoom = (input: { name: string; password?: string }) =>
+  graphqlRequest<{ createRoom: GameRoom }>(CREATE_ROOM_MUTATION, { input });
+
+export const joinRoom = (input: { roomId: string; password?: string }) =>
+  graphqlRequest<{ joinRoom: GameRoom }>(JOIN_ROOM_MUTATION, { input });
+
+export const leaveRoom = (roomId: string) =>
+  graphqlRequest<{ leaveRoom: GameRoom }>(LEAVE_ROOM_MUTATION, {
+    input: { roomId },
+  });
+
 type SubscriptionCallbacks<T> = {
   onData: (data: T) => void;
   onError?: (err: unknown) => void;
@@ -180,7 +264,7 @@ const getWsClient = () => {
     connectionParams: () => {
       const token = useAuthStore.getState().token;
       return token ? { Authorization: `Bearer ${token}` } : {};
-    }
+    },
   });
   return wsClient;
 };
@@ -193,7 +277,7 @@ export const subscribeToMessages = (
   const dispose = client.subscribe(
     {
       query: MESSAGE_ADDED_SUBSCRIPTION,
-      variables: { roomId }
+      variables: { roomId },
     },
     {
       next: (value) => {
@@ -203,7 +287,7 @@ export const subscribeToMessages = (
         }
       },
       error: (err) => onError?.(err),
-      complete: () => onComplete?.()
+      complete: () => onComplete?.(),
     }
   );
 

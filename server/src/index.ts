@@ -20,7 +20,7 @@ const bootstrap = async () => {
 
   const httpServer = http.createServer(app);
 
-  let serverCleanup: { dispose: () => Promise<void> } | undefined;
+  let serverCleanup: (() => Promise<void> | void) | undefined;
 
   const server = new ApolloServer({
     typeDefs,
@@ -33,7 +33,7 @@ const bootstrap = async () => {
           return {
             async drainServer() {
               if (serverCleanup) {
-                await serverCleanup.dispose();
+                await serverCleanup();
               }
             }
           };
@@ -43,16 +43,17 @@ const bootstrap = async () => {
   });
 
   await server.start();
-  server.applyMiddleware({ app, path: "/graphql" });
+  server.applyMiddleware({ app: app as any, path: "/graphql" });
 
   const wsServer = new WebSocketServer({ server: httpServer, path: "/graphql" });
-  serverCleanup = useServer(
+  const cleanup = useServer(
     {
-      schema: server.schema,
+      schema: (server as any).schema,
       context: buildWsContext
     },
     wsServer
   );
+  serverCleanup = () => cleanup.dispose();
 
   httpServer.listen(env.port, () => {
     console.log(`🚀 GraphQL ready at http://localhost:${env.port}${server.graphqlPath}`);

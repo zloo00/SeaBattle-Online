@@ -5,6 +5,7 @@ import LoginPage from "./pages/Login";
 import RegisterPage from "./pages/Register";
 import { PlacementModal } from "./components/PlacementModal";
 import GamePage from "./pages/Game";
+import LobbyPage from "./pages/Lobby";
 
 const Home = () => {
   const { user, logout } = useAuthStore();
@@ -48,6 +49,11 @@ const Home = () => {
                 <button type="button" onClick={() => setPlacementOpen(true)}>
                   Расставить корабли
                 </button>
+                <Link to="/lobby">
+                  <button type="button" className="ghost">
+                    ?????
+                  </button>
+                </Link>
                 <button
                   type="button"
                   onClick={() => navigate(roomId ? `/game/${roomId}` : "/game")}
@@ -132,6 +138,14 @@ function App() {
         element={
           <RequireAuth>
             <GamePage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/lobby"
+        element={
+          <RequireAuth>
+            <LobbyPage />
           </RequireAuth>
         }
       />

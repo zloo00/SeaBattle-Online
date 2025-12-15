@@ -9,7 +9,14 @@ import { requireAuth } from "../auth/guards";
 import { GameRoom } from "../models/gameRoom";
 import { Ship } from "../models/ship";
 import { Message } from "../models/message";
-import { messageInputSchema, placeShipsSchema } from "../validation/gameSchemas";
+import {
+  messageInputSchema,
+  placeShipsSchema,
+  createRoomSchema,
+  joinRoomSchema,
+  leaveRoomSchema,
+  roomSearchSchema
+} from "../validation/gameSchemas";
 import { validateShipFleet } from "../validation/shipValidation";
 import { MESSAGE_ADDED, pubsub } from "./pubsub";
 
@@ -75,6 +82,35 @@ export const resolvers = {
 
       const ships = await Ship.find({ roomId: room._id, playerId: currentUser.id });
       return ships.map(mapShip);
+    },
+    getPublicRooms: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
+      requireAuth(ctx);
+      const rooms = await GameRoom.find({
+        isDeleted: false,
+        password: { $in: [null, ""] }
+      })
+        .sort({ createdAt: -1 })
+        .limit(50);
+      return rooms.map(mapRoom);
+    },
+    searchRooms: async (_: unknown, { term }: { term: string }, ctx: GraphQLContext) => {
+      requireAuth(ctx);
+      const { term: parsedTerm } = roomSearchSchema.parse({ term });
+      const rooms = await GameRoom.find({
+        isDeleted: false,
+        name: { $regex: parsedTerm, $options: "i" }
+      })
+        .sort({ createdAt: -1 })
+        .limit(50);
+      return rooms.map(mapRoom);
+    },
+    getMyRooms: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
+      const currentUser = requireAuth(ctx);
+      const rooms = await GameRoom.find({
+        isDeleted: false,
+        participants: currentUser.id
+      }).sort({ updatedAt: -1 });
+      return rooms.map(mapRoom);
     }
   },
   Mutation: {
@@ -197,6 +233,92 @@ export const resolvers = {
       await room.save();
 
       return createdShips.map(mapShip);
+    },
+    createRoom: async (_: unknown, { input }: { input: unknown }, ctx: GraphQLContext) => {
+      const currentUser = requireAuth(ctx);
+      const data = createRoomSchema.parse(input);
+
+      const room = await GameRoom.create({
+        name: data.name,
+        password: data.password?.trim() || undefined,
+        status: "waiting",
+        maxPlayers: 2,
+        participants: [currentUser.id],
+        isDeleted: false
+      });
+
+      await User.findByIdAndUpdate(currentUser.id, {
+        $addToSet: { participantRooms: room._id }
+      });
+
+      return mapRoom(room);
+    },
+    joinRoom: async (_: unknown, { input }: { input: unknown }, ctx: GraphQLContext) => {
+      const currentUser = requireAuth(ctx);
+      const data = joinRoomSchema.parse(input);
+
+      const room = await GameRoom.findById(data.roomId);
+      if (!room || room.isDeleted) {
+        throw new Error("Room not found");
+      }
+
+      const alreadyParticipant = room.participants.some(
+        (id) => id.toString() === currentUser.id
+      );
+      if (alreadyParticipant) {
+        return mapRoom(room);
+      }
+
+      if (room.participants.length >= room.maxPlayers) {
+        throw new Error("Room is full");
+      }
+
+      const requiresPassword = room.password && room.password.length > 0;
+      if (requiresPassword) {
+        const provided = data.password?.trim() || "";
+        if (room.password !== provided) {
+          throw new Error("Invalid room password");
+        }
+      }
+
+      room.participants.push(currentUser.id as any);
+      await room.save();
+      await User.findByIdAndUpdate(currentUser.id, {
+        $addToSet: { participantRooms: room._id }
+      });
+
+      return mapRoom(room);
+    },
+    leaveRoom: async (_: unknown, { input }: { input: unknown }, ctx: GraphQLContext) => {
+      const currentUser = requireAuth(ctx);
+      const data = leaveRoomSchema.parse(input);
+
+      const room = await GameRoom.findById(data.roomId);
+      if (!room || room.isDeleted) {
+        throw new Error("Room not found");
+      }
+
+      const beforeCount = room.participants.length;
+      room.participants = room.participants.filter(
+        (id) => id.toString() !== currentUser.id
+      ) as any;
+
+      if (beforeCount === room.participants.length) {
+        throw new Error("You are not part of this room");
+      }
+
+      if (room.participants.length === 0) {
+        room.status = "waiting";
+        room.currentTurn = null;
+        room.winner = null;
+      }
+
+      await room.save();
+      await User.findByIdAndUpdate(currentUser.id, {
+        $pull: { participantRooms: room._id }
+      });
+
+      return mapRoom(room);
     }
   },
   Subscription: {
@@ -256,4 +378,18 @@ const mapMessage = (message: any) => ({
   timestamp: message.timestamp,
   createdAt: message.createdAt,
   updatedAt: message.updatedAt
+});
+
+const mapRoom = (room: any) => ({
+  id: room._id.toString(),
+  name: room.name,
+  status: room.status,
+  maxPlayers: room.maxPlayers,
+  currentTurn: room.currentTurn ? room.currentTurn.toString() : null,
+  winner: room.winner ? room.winner.toString() : null,
+  password: room.password ?? null,
+  participants: room.participants.map((id: any) => id.toString()),
+  isDeleted: room.isDeleted,
+  createdAt: room.createdAt,
+  updatedAt: room.updatedAt
 });

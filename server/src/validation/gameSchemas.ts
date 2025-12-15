@@ -34,7 +34,20 @@ export const messageInputSchema = z.object({
 
 export const createRoomSchema = z.object({
   name: z.string().trim().min(3).max(50),
-  password: z.string().optional()
+  password: z.string().trim().max(128).optional()
+});
+
+export const joinRoomSchema = z.object({
+  roomId: z.string().trim(),
+  password: z.string().trim().max(128).optional()
+});
+
+export const leaveRoomSchema = z.object({
+  roomId: z.string().trim()
+});
+
+export const roomSearchSchema = z.object({
+  term: z.string().trim().min(1).max(50)
 });
 
 export type ShotInput = z.infer<typeof shotInputSchema>;
@@ -43,3 +56,6 @@ export type ShipPlacementInput = z.infer<typeof shipPlacementSchema>;
 export type PlaceShipsInput = z.infer<typeof placeShipsSchema>;
 export type MessageInput = z.infer<typeof messageInputSchema>;
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;
+export type JoinRoomInput = z.infer<typeof joinRoomSchema>;
+export type LeaveRoomInput = z.infer<typeof leaveRoomSchema>;
+export type RoomSearchInput = z.infer<typeof roomSearchSchema>;

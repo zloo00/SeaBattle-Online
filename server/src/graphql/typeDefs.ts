@@ -111,6 +111,20 @@ export const typeDefs = gql`
     password: String!
   }
 
+  input CreateRoomInput {
+    name: String!
+    password: String
+  }
+
+  input JoinRoomInput {
+    roomId: ID!
+    password: String
+  }
+
+  input LeaveRoomInput {
+    roomId: ID!
+  }
+
   type AuthPayload {
     token: String!
     user: User!
@@ -120,6 +134,9 @@ export const typeDefs = gql`
     me: User
     messages(roomId: ID!): [Message!]!
     myShips(roomId: ID!): [Ship!]!
+    getPublicRooms: [GameRoom!]!
+    searchRooms(term: String!): [GameRoom!]!
+    getMyRooms: [GameRoom!]!
   }
 
   type Mutation {
@@ -127,6 +144,9 @@ export const typeDefs = gql`
     login(input: LoginInput!): AuthPayload!
     sendMessage(input: SendMessageInput!): Message!
     placeShips(input: PlaceShipsInput!): [Ship!]!
+    createRoom(input: CreateRoomInput!): GameRoom!
+    joinRoom(input: JoinRoomInput!): GameRoom!
+    leaveRoom(input: LeaveRoomInput!): GameRoom!
   }
 
   type Subscription {
