@@ -98,7 +98,7 @@ const LobbyPage = () => {
         password: joinForm.password.trim() || undefined,
       });
       await loadRooms();
-      navigate(`/game/${result.joinRoom.id}`);
+      navigate(`/room/${result.joinRoom.id}`);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : 'Не удалось присоединиться к комнате');
     }
@@ -222,7 +222,7 @@ const LobbyPage = () => {
                   </div>
                 </div>
                 <div className="room-actions">
-                  <button type="button" onClick={() => navigate(`/game/${room.id}`)}>
+                  <button type="button" onClick={() => navigate(`/room/${room.id}`)}>
                     Перейти
                   </button>
                   <button type="button" className="ghost" onClick={() => handleLeaveRoom(room.id)}>

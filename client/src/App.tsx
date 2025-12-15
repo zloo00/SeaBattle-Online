@@ -51,12 +51,12 @@ const Home = () => {
                 </button>
                 <Link to="/lobby">
                   <button type="button" className="ghost">
-                    ?????
+                    Лобби
                   </button>
                 </Link>
                 <button
                   type="button"
-                  onClick={() => navigate(roomId ? `/game/${roomId}` : "/game")}
+                  onClick={() => navigate(roomId ? `/room/${roomId}` : "/room")}
                   className="ghost"
                 >
                   Открыть чат комнаты
@@ -131,6 +131,14 @@ function App() {
           <AuthRedirect>
             <RegisterPage />
           </AuthRedirect>
+        }
+      />
+      <Route
+        path="/room/:roomId?"
+        element={
+          <RequireAuth>
+            <GamePage />
+          </RequireAuth>
         }
       />
       <Route
