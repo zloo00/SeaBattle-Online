@@ -1,4 +1,5 @@
 import { GraphQLScalarType, Kind } from "graphql";
+import { withFilter } from "graphql-subscriptions";
 import { User } from "../models/user";
 import { registerSchema, loginSchema } from "../validation/authSchemas";
 import { hashPassword, verifyPassword } from "../auth/password";
@@ -7,8 +8,10 @@ import { GraphQLContext } from "./context";
 import { requireAuth } from "../auth/guards";
 import { GameRoom } from "../models/gameRoom";
 import { Ship } from "../models/ship";
-import { placeShipsSchema } from "../validation/gameSchemas";
+import { Message } from "../models/message";
+import { messageInputSchema, placeShipsSchema } from "../validation/gameSchemas";
 import { validateShipFleet } from "../validation/shipValidation";
+import { MESSAGE_ADDED, pubsub } from "./pubsub";
 
 const DateScalar = new GraphQLScalarType({
   name: "Date",
@@ -36,6 +39,24 @@ export const resolvers = {
       const currentUser = requireAuth(ctx);
       const user = await User.findById(currentUser.id);
       return user ? mapUser(user) : null;
+    },
+    messages: async (_: unknown, { roomId }: { roomId: string }, ctx: GraphQLContext) => {
+      const currentUser = requireAuth(ctx);
+      const room = await GameRoom.findById(roomId);
+      if (!room || room.isDeleted) {
+        throw new Error("Комната не найдена");
+      }
+      const isParticipant = room.participants.some(
+        (id) => id.toString() === currentUser.id
+      );
+      if (!isParticipant) {
+        throw new Error("Вы не участник этой комнаты");
+      }
+
+      const messages = await Message.find({ roomId: room._id })
+        .sort({ timestamp: 1 })
+        .limit(100);
+      return messages.map(mapMessage);
     },
     myShips: async (_: unknown, { roomId }: { roomId: string }, ctx: GraphQLContext) => {
       const currentUser = requireAuth(ctx);
@@ -103,6 +124,35 @@ export const resolvers = {
 
       return { token, user: mapUser(user) };
     },
+    sendMessage: async (_: unknown, { input }: { input: unknown }, ctx: GraphQLContext) => {
+      const currentUser = requireAuth(ctx);
+      const data = messageInputSchema.parse(input);
+
+      const room = await GameRoom.findById(data.roomId);
+      if (!room || room.isDeleted) {
+        throw new Error("Комната не найдена");
+      }
+
+      const isParticipant = room.participants.some(
+        (id) => id.toString() === currentUser.id
+      );
+      if (!isParticipant) {
+        throw new Error("Вы не участник этой комнаты");
+      }
+
+      const message = await Message.create({
+        roomId: room._id,
+        userId: currentUser.id,
+        username: currentUser.username,
+        text: data.text,
+        timestamp: new Date()
+      });
+
+      const mapped = mapMessage(message);
+      await pubsub.publish(MESSAGE_ADDED, { messageAdded: mapped });
+
+      return mapped;
+    },
     placeShips: async (_: unknown, { input }: { input: unknown }, ctx: GraphQLContext) => {
       const currentUser = requireAuth(ctx);
       const data = placeShipsSchema.parse(input);
@@ -148,6 +198,27 @@ export const resolvers = {
 
       return createdShips.map(mapShip);
     }
+  },
+  Subscription: {
+    messageAdded: {
+      subscribe: withFilter(
+        () => pubsub.asyncIterator([MESSAGE_ADDED]),
+        async (payload, variables, ctx: GraphQLContext) => {
+          const currentUser = ctx.user;
+          if (!currentUser) {
+            throw new Error("Unauthorized");
+          }
+          if (payload.messageAdded.roomId !== variables.roomId) {
+            return false;
+          }
+          const room = await GameRoom.findById(variables.roomId);
+          if (!room || room.isDeleted) {
+            return false;
+          }
+          return room.participants.some((id) => id.toString() === currentUser.id);
+        }
+      )
+    }
   }
 };
 
@@ -174,4 +245,15 @@ const mapShip = (ship: any) => ({
   hits: ship.hits,
   createdAt: ship.createdAt,
   updatedAt: ship.updatedAt
+});
+
+const mapMessage = (message: any) => ({
+  id: message._id.toString(),
+  roomId: message.roomId.toString(),
+  userId: message.userId.toString(),
+  username: message.username,
+  text: message.text,
+  timestamp: message.timestamp,
+  createdAt: message.createdAt,
+  updatedAt: message.updatedAt
 });

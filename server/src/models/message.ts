@@ -3,6 +3,7 @@ import { Schema, model, Types } from "mongoose";
 export interface IMessage {
   roomId: Types.ObjectId;
   userId: Types.ObjectId;
+  username: string;
   text: string;
   timestamp: Date;
   createdAt: Date;
@@ -20,6 +21,13 @@ const messageSchema = new Schema<IMessage>(
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true
+    },
+    username: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 1,
+      maxlength: 50
     },
     text: {
       type: String,

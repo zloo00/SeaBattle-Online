@@ -27,6 +27,11 @@ export const placeShipsSchema = z.object({
   ships: z.array(shipSchema).min(1).max(10)
 });
 
+export const messageInputSchema = z.object({
+  roomId: z.string().trim(),
+  text: z.string().trim().min(1).max(500)
+});
+
 export const createRoomSchema = z.object({
   name: z.string().trim().min(3).max(50),
   password: z.string().optional()
@@ -36,4 +41,5 @@ export type ShotInput = z.infer<typeof shotInputSchema>;
 export type ShipInput = z.infer<typeof shipSchema>;
 export type ShipPlacementInput = z.infer<typeof shipPlacementSchema>;
 export type PlaceShipsInput = z.infer<typeof placeShipsSchema>;
+export type MessageInput = z.infer<typeof messageInputSchema>;
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;

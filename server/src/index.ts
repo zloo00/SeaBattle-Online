@@ -2,11 +2,14 @@ import http from "http";
 import express from "express";
 import cors from "cors";
 import { ApolloServer } from "apollo-server-express";
+import { ApolloServerPluginDrainHttpServer } from "apollo-server-core";
+import { WebSocketServer } from "ws";
+import { useServer } from "graphql-ws/lib/use/ws";
 import { env } from "./config/env";
 import { connectToDatabase } from "./config/db";
 import { typeDefs } from "./graphql/typeDefs";
 import { resolvers } from "./graphql/resolvers";
-import { buildContext } from "./graphql/context";
+import { buildContext, buildWsContext } from "./graphql/context";
 
 const bootstrap = async () => {
   await connectToDatabase();
@@ -15,16 +18,42 @@ const bootstrap = async () => {
   app.use(cors());
   app.use(express.json());
 
+  const httpServer = http.createServer(app);
+
+  let serverCleanup: { dispose: () => Promise<void> } | undefined;
+
   const server = new ApolloServer({
     typeDefs,
     resolvers,
-    context: buildContext
+    context: buildContext,
+    plugins: [
+      ApolloServerPluginDrainHttpServer({ httpServer }),
+      {
+        async serverWillStart() {
+          return {
+            async drainServer() {
+              if (serverCleanup) {
+                await serverCleanup.dispose();
+              }
+            }
+          };
+        }
+      }
+    ]
   });
 
   await server.start();
   server.applyMiddleware({ app, path: "/graphql" });
 
-  const httpServer = http.createServer(app);
+  const wsServer = new WebSocketServer({ server: httpServer, path: "/graphql" });
+  serverCleanup = useServer(
+    {
+      schema: server.schema,
+      context: buildWsContext
+    },
+    wsServer
+  );
+
   httpServer.listen(env.port, () => {
     console.log(`🚀 GraphQL ready at http://localhost:${env.port}${server.graphqlPath}`);
   });

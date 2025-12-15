@@ -1,7 +1,13 @@
-import { AuthPayload, PlaceShipsInput, Ship } from "../types";
+import { AuthPayload, Message, PlaceShipsInput, Ship } from "../types";
 import { useAuthStore } from "../store/auth";
+import { createClient } from "graphql-ws";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/graphql";
+const WS_URL =
+  import.meta.env.VITE_WS_URL ||
+  (API_URL.startsWith("https")
+    ? API_URL.replace("https", "wss")
+    : API_URL.replace("http", "ws"));
 
 type GraphQLResponse<T> = {
   data?: T;
@@ -96,6 +102,51 @@ const MY_SHIPS_QUERY = `
   }
 `;
 
+const MESSAGES_QUERY = `
+  query Messages($roomId: ID!) {
+    messages(roomId: $roomId) {
+      id
+      roomId
+      userId
+      username
+      text
+      timestamp
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const SEND_MESSAGE_MUTATION = `
+  mutation SendMessage($input: SendMessageInput!) {
+    sendMessage(input: $input) {
+      id
+      roomId
+      userId
+      username
+      text
+      timestamp
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const MESSAGE_ADDED_SUBSCRIPTION = `
+  subscription OnMessageAdded($roomId: ID!) {
+    messageAdded(roomId: $roomId) {
+      id
+      roomId
+      userId
+      username
+      text
+      timestamp
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 export const register = (input: { username: string; email: string; password: string }) =>
   graphqlRequest<{ register: AuthPayload }>(REGISTER_MUTATION, { input });
 
@@ -107,3 +158,54 @@ export const placeShips = (input: PlaceShipsInput) =>
 
 export const getMyShips = (roomId: string) =>
   graphqlRequest<{ myShips: Ship[] }>(MY_SHIPS_QUERY, { roomId });
+
+export const getMessages = (roomId: string) =>
+  graphqlRequest<{ messages: Message[] }>(MESSAGES_QUERY, { roomId });
+
+export const sendMessage = (input: { roomId: string; text: string }) =>
+  graphqlRequest<{ sendMessage: Message }>(SEND_MESSAGE_MUTATION, { input });
+
+type SubscriptionCallbacks<T> = {
+  onData: (data: T) => void;
+  onError?: (err: unknown) => void;
+  onComplete?: () => void;
+};
+
+let wsClient: ReturnType<typeof createClient> | null = null;
+
+const getWsClient = () => {
+  if (wsClient) return wsClient;
+  wsClient = createClient({
+    url: WS_URL,
+    connectionParams: () => {
+      const token = useAuthStore.getState().token;
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    }
+  });
+  return wsClient;
+};
+
+export const subscribeToMessages = (
+  roomId: string,
+  { onData, onError, onComplete }: SubscriptionCallbacks<Message>
+) => {
+  const client = getWsClient();
+  const dispose = client.subscribe(
+    {
+      query: MESSAGE_ADDED_SUBSCRIPTION,
+      variables: { roomId }
+    },
+    {
+      next: (value) => {
+        const payload = value.data as { messageAdded?: Message } | undefined;
+        if (payload?.messageAdded) {
+          onData(payload.messageAdded);
+        }
+      },
+      error: (err) => onError?.(err),
+      complete: () => onComplete?.()
+    }
+  );
+
+  return dispose;
+};

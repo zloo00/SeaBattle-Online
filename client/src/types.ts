@@ -33,3 +33,14 @@ export interface PlaceShipsInput {
   roomId: string;
   ships: ShipPlacement[];
 }
+
+export interface Message {
+  id: string;
+  roomId: string;
+  userId: string;
+  username: string;
+  text: string;
+  timestamp: string;
+  createdAt: string;
+  updatedAt: string;
+}

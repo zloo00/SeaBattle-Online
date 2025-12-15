@@ -63,6 +63,7 @@ export const typeDefs = gql`
     id: ID!
     roomId: ID!
     userId: ID!
+    username: String!
     text: String!
     timestamp: Date!
     createdAt: Date!
@@ -80,6 +81,11 @@ export const typeDefs = gql`
     hits: Int!
     createdAt: Date!
     updatedAt: Date!
+  }
+
+  input SendMessageInput {
+    roomId: ID!
+    text: String!
   }
 
   input ShipPlacementInput {
@@ -112,12 +118,18 @@ export const typeDefs = gql`
 
   type Query {
     me: User
+    messages(roomId: ID!): [Message!]!
     myShips(roomId: ID!): [Ship!]!
   }
 
   type Mutation {
     register(input: RegisterInput!): AuthPayload!
     login(input: LoginInput!): AuthPayload!
+    sendMessage(input: SendMessageInput!): Message!
     placeShips(input: PlaceShipsInput!): [Ship!]!
+  }
+
+  type Subscription {
+    messageAdded(roomId: ID!): Message!
   }
 `;

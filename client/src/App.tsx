@@ -4,6 +4,7 @@ import { useAuthStore } from "./store/auth";
 import LoginPage from "./pages/Login";
 import RegisterPage from "./pages/Register";
 import { PlacementModal } from "./components/PlacementModal";
+import GamePage from "./pages/Game";
 
 const Home = () => {
   const { user, logout } = useAuthStore();
@@ -49,6 +50,13 @@ const Home = () => {
                 </button>
                 <button
                   type="button"
+                  onClick={() => navigate(roomId ? `/game/${roomId}` : "/game")}
+                  className="ghost"
+                >
+                  Открыть чат комнаты
+                </button>
+                <button
+                  type="button"
                   className="ghost"
                   onClick={() => {
                     logout();
@@ -91,6 +99,14 @@ const AuthRedirect = ({ children }: { children: JSX.Element }) => {
   return children;
 };
 
+const RequireAuth = ({ children }: { children: JSX.Element }) => {
+  const { user } = useAuthStore();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
 function App() {
   return (
     <Routes>
@@ -109,6 +125,14 @@ function App() {
           <AuthRedirect>
             <RegisterPage />
           </AuthRedirect>
+        }
+      />
+      <Route
+        path="/game/:roomId?"
+        element={
+          <RequireAuth>
+            <GamePage />
+          </RequireAuth>
         }
       />
     </Routes>
