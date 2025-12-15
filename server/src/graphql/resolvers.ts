@@ -136,12 +136,20 @@ export const resolvers = {
         .limit(50);
       return rooms.map(mapRoom);
     },
-    getMyRooms: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
+    getMyRooms: async (
+      _: unknown,
+      args: { status?: "waiting" | "placing" | "playing" | "finished" },
+      ctx: GraphQLContext
+    ) => {
       const currentUser = requireAuth(ctx);
-      const rooms = await GameRoom.find({
+      const filter: Record<string, unknown> = {
         isDeleted: false,
         participants: currentUser.id
-      }).sort({ updatedAt: -1 });
+      };
+      if (args.status) {
+        filter.status = args.status;
+      }
+      const rooms = await GameRoom.find(filter).sort({ updatedAt: -1 });
       return rooms.map(mapRoom);
     }
   },

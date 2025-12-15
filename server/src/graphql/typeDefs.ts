@@ -144,7 +144,7 @@ export const typeDefs = gql`
     room(id: ID!): GameRoom
     getPublicRooms: [GameRoom!]!
     searchRooms(term: String!): [GameRoom!]!
-    getMyRooms: [GameRoom!]!
+    getMyRooms(status: GameRoomStatus): [GameRoom!]!
   }
 
   type Mutation {
