@@ -8,9 +8,11 @@ import {
   sendMessage,
   subscribeToMessages,
   subscribeToShots,
+  subscribeToRoomUpdates,
 } from '../api/client';
 import { GameRoom, Message, Shot } from '../types';
 import { useAuthStore } from '../store/auth';
+import { useSubscription } from '../hooks/useSubscription';
 
 const BOARD_SIZE = 10;
 const cellKey = (x: number, y: number) => `${x}-${y}`;
@@ -29,6 +31,7 @@ const GamePage = () => {
   const [shotLoading, setShotLoading] = useState(false);
   const [roomState, setRoomState] = useState<GameRoom | null>(null);
   const [roomLoading, setRoomLoading] = useState(false);
+  const [optimisticShots, setOptimisticShots] = useState<{ x: number; y: number }[]>([]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const user = useAuthStore((s) => s.user);
@@ -61,6 +64,12 @@ const GamePage = () => {
     opponentShots.forEach((shot) => map.set(cellKey(shot.x, shot.y), shot));
     return map;
   }, [opponentShots]);
+
+  const optimisticShotSet = useMemo(() => {
+    const set = new Set<string>();
+    optimisticShots.forEach((cell) => set.add(cellKey(cell.x, cell.y)));
+    return set;
+  }, [optimisticShots]);
 
   const canShoot =
     !!user &&
@@ -123,6 +132,12 @@ const GamePage = () => {
     }
   }, [roomId]);
 
+  const clearOptimisticShot = useCallback((x: number, y: number) => {
+    setOptimisticShots((prev) =>
+      prev.filter((cell) => cell.x !== x || cell.y !== y)
+    );
+  }, []);
+
   useEffect(() => {
     setChatStatus(null);
     if (!roomId.trim()) {
@@ -152,47 +167,62 @@ const GamePage = () => {
     fetchRoomState();
   }, [roomId, fetchShots, fetchRoomState]);
 
-  useEffect(() => {
-    if (!roomId.trim()) {
-      return;
-    }
-    const dispose = subscribeToMessages(roomId.trim(), {
-      onData: (message) =>
-        setMessages((prev) => {
-          const exists = prev.some((m) => m.id === message.id);
-          return exists ? prev : [...prev, message];
-        }),
-      onError: (err) =>
-        setChatStatus(
-          err instanceof Error
-            ? err.message
-            : 'Ошибка подписки на сообщения. Обновите страницу.'
-        ),
-    });
-    return () => dispose();
-  }, [roomId]);
+  useSubscription(
+    () =>
+      subscribeToMessages(roomId.trim(), {
+        onData: (message) =>
+          setMessages((prev) => {
+            const exists = prev.some((m) => m.id === message.id);
+            return exists ? prev : [...prev, message];
+          }),
+        onError: (err) =>
+          setChatStatus(
+            err instanceof Error
+              ? err.message
+              : 'Ошибка подписки на сообщения. Обновите страницу.'
+          ),
+      }),
+    [roomId],
+    Boolean(roomId.trim())
+  );
 
-  useEffect(() => {
-    if (!roomId.trim()) {
-      return;
-    }
-    const dispose = subscribeToShots(roomId.trim(), {
-      onData: (shot) => {
-        setShots((prev) => {
-          const exists = prev.some((item) => item.id === shot.id);
-          return exists ? prev : [...prev, shot];
-        });
-        fetchRoomState();
-      },
-      onError: (err) =>
-        setBattleStatus(
-          err instanceof Error
-            ? err.message
-            : 'Ошибка подписки на выстрелы. Попробуйте перезайти в комнату.'
-        ),
-    });
-    return () => dispose();
-  }, [roomId, fetchRoomState]);
+  useSubscription(
+    () =>
+      subscribeToShots(roomId.trim(), {
+        onData: (shot) => {
+          setShots((prev) => {
+            const exists = prev.some((item) => item.id === shot.id);
+            return exists ? prev : [...prev, shot];
+          });
+          if (shot.playerId === user?.id) {
+            clearOptimisticShot(shot.x, shot.y);
+          }
+        },
+        onError: (err) =>
+          setBattleStatus(
+            err instanceof Error
+              ? err.message
+              : 'Ошибка подписки на выстрелы. Попробуйте перезайти в комнату.'
+          ),
+      }),
+    [roomId, user?.id, clearOptimisticShot],
+    Boolean(roomId.trim())
+  );
+
+  useSubscription(
+    () =>
+      subscribeToRoomUpdates(roomId.trim(), {
+        onData: (room) => setRoomState(room),
+        onError: (err) =>
+          setBattleStatus(
+            err instanceof Error
+              ? err.message
+              : 'Ошибка подписки на состояние комнаты.'
+          ),
+      }),
+    [roomId],
+    Boolean(roomId.trim())
+  );
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -237,6 +267,7 @@ const GamePage = () => {
 
     setShotLoading(true);
     setBattleStatus(null);
+    setOptimisticShots((prev) => [...prev, { x, y }]);
     try {
       const { makeShot: shot } = await makeShot({ roomId: roomId.trim(), x, y });
       setShots((prev) => {
@@ -256,7 +287,7 @@ const GamePage = () => {
       );
     } finally {
       setShotLoading(false);
-      fetchRoomState();
+      clearOptimisticShot(x, y);
     }
   };
 
@@ -274,13 +305,18 @@ const GamePage = () => {
         {Array.from({ length: BOARD_SIZE }).map((_, y) =>
           Array.from({ length: BOARD_SIZE }).map((__, x) => {
             const shot = shotMap.get(cellKey(x, y));
-            const statusClass = shot ? `shot-${shot.result}` : '';
+            const pending = interactive && optimisticShotSet.has(cellKey(x, y));
+            const statusClass = shot
+              ? `shot-${shot.result}`
+              : pending
+                ? 'shot-pending'
+                : '';
             return (
               <button
                 key={cellKey(x, y)}
                 type="button"
                 className={`grid-cell shot-cell ${statusClass}`}
-                disabled={!interactive || !!shot || shotLoading}
+                disabled={!interactive || !!shot || shotLoading || pending}
                 onClick={() => interactive && handleShot(x, y)}
               >
                 {shot
@@ -289,7 +325,9 @@ const GamePage = () => {
                     : shot.result === 'hit'
                       ? '✕'
                       : '☠'
-                  : ''}
+                  : pending
+                    ? '?'
+                    : ''}
               </button>
             );
           })

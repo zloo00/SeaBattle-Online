@@ -20,7 +20,7 @@ import {
   makeShotSchema
 } from "../validation/gameSchemas";
 import { validateShipFleet } from "../validation/shipValidation";
-import { MESSAGE_ADDED, SHOT_FIRED, pubsub } from "./pubsub";
+import { MESSAGE_ADDED, ROOM_UPDATED, SHOT_FIRED, pubsub } from "./pubsub";
 import { checkHit, checkSunk, checkWin } from "../services/combat";
 
 const DateScalar = new GraphQLScalarType({
@@ -263,6 +263,7 @@ export const resolvers = {
         }
       }
       await room.save();
+      await publishRoomUpdate(room);
 
       return createdShips.map(mapShip);
     },
@@ -283,6 +284,7 @@ export const resolvers = {
         $addToSet: { participantRooms: room._id }
       });
 
+      await publishRoomUpdate(room);
       return mapRoom(room);
     },
     joinRoom: async (_: unknown, { input }: { input: unknown }, ctx: GraphQLContext) => {
@@ -315,6 +317,7 @@ export const resolvers = {
 
       room.participants.push(currentUser.id as any);
       await room.save();
+      await publishRoomUpdate(room);
       await User.findByIdAndUpdate(currentUser.id, {
         $addToSet: { participantRooms: room._id }
       });
@@ -346,6 +349,7 @@ export const resolvers = {
       }
 
       await room.save();
+      await publishRoomUpdate(room);
       await User.findByIdAndUpdate(currentUser.id, {
         $pull: { participantRooms: room._id }
       });
@@ -441,7 +445,7 @@ export const resolvers = {
       }
 
       await room.save();
-
+      await publishRoomUpdate(room);
       const mapped = mapShot(shot);
       await pubsub.publish(SHOT_FIRED, { shotFired: mapped });
       return mapped;
@@ -476,6 +480,26 @@ export const resolvers = {
             throw new Error("Unauthorized");
           }
           if (payload.shotFired.roomId !== variables.roomId) {
+            return false;
+          }
+          const room = await GameRoom.findById(variables.roomId);
+          if (!room || room.isDeleted) {
+            return false;
+          }
+          return room.participants.some((id) => id.toString() === currentUser.id);
+        }
+      )
+    }
+    ,
+    roomUpdated: {
+      subscribe: withFilter(
+        () => pubsub.asyncIterator([ROOM_UPDATED]),
+        async (payload, variables, ctx: GraphQLContext) => {
+          const currentUser = ctx.user;
+          if (!currentUser) {
+            throw new Error("Unauthorized");
+          }
+          if (payload.roomUpdated.id !== variables.roomId) {
             return false;
           }
           const room = await GameRoom.findById(variables.roomId);
@@ -550,3 +574,7 @@ const mapRoom = (room: any) => ({
   createdAt: room.createdAt,
   updatedAt: room.updatedAt
 });
+
+const publishRoomUpdate = async (room: any) => {
+  await pubsub.publish(ROOM_UPDATED, { roomUpdated: mapRoom(room) });
+};

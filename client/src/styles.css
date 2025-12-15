@@ -401,6 +401,12 @@ button:hover:not(:disabled) {
   border-color: #ff9eab;
 }
 
+.shot-cell.shot-pending {
+  background: #f0edff;
+  color: #5b4ac8;
+  border: 1px dashed #a498ff;
+}
+
 .length-row,
 .orientation-row,
 .action-row {

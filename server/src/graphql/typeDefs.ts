@@ -161,5 +161,6 @@ export const typeDefs = gql`
   type Subscription {
     messageAdded(roomId: ID!): Message!
     shotFired(roomId: ID!): Shot!
+    roomUpdated(roomId: ID!): GameRoom!
   }
 `;

@@ -114,3 +114,13 @@ Authorization is enforced via the `Authorization: Bearer <JWT>` header. Attempts
 - If the client displays garbled placeholder copy, ensure your terminal/editor is using UTF-8. The source files intentionally keep localized placeholder strings.
 - WebSocket errors typically mean `VITE_WS_URL` does not match your API host or a token is missing/expired.
 - Mongo connection failures usually stem from `MONGODB_URI` typos or the local daemon not running; check `mongod` logs.
+
+## Realtime Testing
+1. Start both `server` (`npm run dev`) and `client` (`npm run dev`) projects.
+2. Open two separate browsers (or one normal window + one incognito) and log in with different accounts.
+3. From the lobby, create/join the same room. Each screen will subscribe to:
+   - `messageAdded` for chat
+   - `shotFired` for board updates (client shows optimistic markers immediately)
+   - `roomUpdated` for turn/status changes
+4. Send a chat message or fire a shot in one browser — the other browser should reflect the change instantly.
+5. Watch the optimistic shot markers: the firing player sees `?` on the target cell immediately, which is replaced by the actual result as soon as the subscription payload arrives.

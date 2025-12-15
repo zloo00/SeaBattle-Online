@@ -252,6 +252,14 @@ const SHOT_FIRED_SUBSCRIPTION = `
   }
 `;
 
+const ROOM_UPDATED_SUBSCRIPTION = `
+  subscription OnRoomUpdated($roomId: ID!) {
+    roomUpdated(roomId: $roomId) {
+      ${ROOM_FIELDS}
+    }
+  }
+`;
+
 export const register = (input: {
   username: string;
   email: string;
@@ -362,6 +370,31 @@ export const subscribeToShots = (
         const payload = value.data as { shotFired?: Shot } | undefined;
         if (payload?.shotFired) {
           onData(payload.shotFired);
+        }
+      },
+      error: (err) => onError?.(err),
+      complete: () => onComplete?.(),
+    }
+  );
+
+  return dispose;
+};
+
+export const subscribeToRoomUpdates = (
+  roomId: string,
+  { onData, onError, onComplete }: SubscriptionCallbacks<GameRoom>
+) => {
+  const client = getWsClient();
+  const dispose = client.subscribe(
+    {
+      query: ROOM_UPDATED_SUBSCRIPTION,
+      variables: { roomId },
+    },
+    {
+      next: (value) => {
+        const payload = value.data as { roomUpdated?: GameRoom } | undefined;
+        if (payload?.roomUpdated) {
+          onData(payload.roomUpdated);
         }
       },
       error: (err) => onError?.(err),
