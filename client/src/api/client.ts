@@ -1,4 +1,4 @@
-import { AuthPayload } from "../types";
+import { AuthPayload, PlaceShipsInput, Ship } from "../types";
 import { useAuthStore } from "../store/auth";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/graphql";
@@ -66,8 +66,44 @@ const LOGIN_MUTATION = `
   }
 `;
 
+const PLACE_SHIPS_MUTATION = `
+  mutation PlaceShips($input: PlaceShipsInput!) {
+    placeShips(input: $input) {
+      id
+      playerId
+      roomId
+      startX
+      startY
+      length
+      orientation
+      hits
+    }
+  }
+`;
+
+const MY_SHIPS_QUERY = `
+  query MyShips($roomId: ID!) {
+    myShips(roomId: $roomId) {
+      id
+      playerId
+      roomId
+      startX
+      startY
+      length
+      orientation
+      hits
+    }
+  }
+`;
+
 export const register = (input: { username: string; email: string; password: string }) =>
   graphqlRequest<{ register: AuthPayload }>(REGISTER_MUTATION, { input });
 
 export const login = (input: { email: string; password: string }) =>
   graphqlRequest<{ login: AuthPayload }>(LOGIN_MUTATION, { input });
+
+export const placeShips = (input: PlaceShipsInput) =>
+  graphqlRequest<{ placeShips: Ship[] }>(PLACE_SHIPS_MUTATION, { input });
+
+export const getMyShips = (roomId: string) =>
+  graphqlRequest<{ myShips: Ship[] }>(MY_SHIPS_QUERY, { roomId });

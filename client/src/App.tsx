@@ -1,32 +1,65 @@
+import { useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "./store/auth";
 import LoginPage from "./pages/Login";
 import RegisterPage from "./pages/Register";
+import { PlacementModal } from "./components/PlacementModal";
 
 const Home = () => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const [placementOpen, setPlacementOpen] = useState(false);
+  const [roomId, setRoomId] = useState("");
 
   return (
     <div className="page">
-      <div className="card">
-        <h1 className="title">SeaBattle Online</h1>
-        <p className="subtitle">
-          Реальное время, комнаты 1 на 1, чат и туры. Начни с регистрации или входа.
-        </p>
+      <div className="card wide-card">
+        <div className="hero-row">
+          <div>
+            <h1 className="title">SeaBattle Online</h1>
+            <p className="subtitle">
+              Реальное время, комнаты 1 на 1, чат и туры. Начни с регистрации или входа.
+            </p>
+          </div>
+          <div className="badge">10x10</div>
+        </div>
+
         {user ? (
-          <>
-            <p>Привет, {user.username}! Ты вошел как {user.email}.</p>
-            <button
-              type="button"
-              onClick={() => {
-                logout();
-                navigate("/login");
-              }}
-            >
-              Выйти
-            </button>
-          </>
+          <div className="placement-shell">
+            <div className="pill info-pill">
+              <span>Привет, {user.username}</span>
+              <span className="muted">Аккаунт: {user.email}</span>
+            </div>
+
+            <div className="placement-bar">
+              <div className="bar-text">
+                <div className="eyebrow">ID комнаты</div>
+                <input
+                  value={roomId}
+                  onChange={(e) => setRoomId(e.target.value)}
+                  placeholder="Вставь ID комнаты, к которой присоединился"
+                />
+                <div className="muted">
+                  Нужен, чтобы сохранить свою расстановку и продолжить игру позже.
+                </div>
+              </div>
+              <div className="bar-actions">
+                <button type="button" onClick={() => setPlacementOpen(true)}>
+                  Расставить корабли
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    logout();
+                    navigate("/login");
+                  }}
+                >
+                  Выйти
+                </button>
+              </div>
+            </div>
+          </div>
         ) : (
           <div style={{ display: "flex", gap: "12px" }}>
             <Link to="/login">
@@ -38,6 +71,13 @@ const Home = () => {
           </div>
         )}
       </div>
+
+      <PlacementModal
+        open={placementOpen}
+        roomId={roomId}
+        onRoomIdChange={setRoomId}
+        onClose={() => setPlacementOpen(false)}
+      />
     </div>
   );
 };

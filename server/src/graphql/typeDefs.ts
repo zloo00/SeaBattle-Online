@@ -82,6 +82,18 @@ export const typeDefs = gql`
     updatedAt: Date!
   }
 
+  input ShipPlacementInput {
+    startX: Int!
+    startY: Int!
+    length: Int!
+    orientation: ShipOrientation!
+  }
+
+  input PlaceShipsInput {
+    roomId: ID!
+    ships: [ShipPlacementInput!]!
+  }
+
   input RegisterInput {
     username: String!
     email: String!
@@ -100,10 +112,12 @@ export const typeDefs = gql`
 
   type Query {
     me: User
+    myShips(roomId: ID!): [Ship!]!
   }
 
   type Mutation {
     register(input: RegisterInput!): AuthPayload!
     login(input: LoginInput!): AuthPayload!
+    placeShips(input: PlaceShipsInput!): [Ship!]!
   }
 `;

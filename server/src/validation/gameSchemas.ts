@@ -10,13 +10,21 @@ export const shotInputSchema = z.object({
   result: z.enum(["miss", "hit", "sunk"])
 });
 
-export const shipPlacementSchema = z.object({
-  roomId: z.string().trim(),
-  playerId: z.string().trim(),
+export const shipSchema = z.object({
   startX: coordinateSchema,
   startY: coordinateSchema,
   length: z.number().int().min(1).max(4),
   orientation: z.enum(["horizontal", "vertical"])
+});
+
+export const shipPlacementSchema = shipSchema.extend({
+  roomId: z.string().trim(),
+  playerId: z.string().trim()
+});
+
+export const placeShipsSchema = z.object({
+  roomId: z.string().trim(),
+  ships: z.array(shipSchema).min(1).max(10)
 });
 
 export const createRoomSchema = z.object({
@@ -25,5 +33,7 @@ export const createRoomSchema = z.object({
 });
 
 export type ShotInput = z.infer<typeof shotInputSchema>;
+export type ShipInput = z.infer<typeof shipSchema>;
 export type ShipPlacementInput = z.infer<typeof shipPlacementSchema>;
+export type PlaceShipsInput = z.infer<typeof placeShipsSchema>;
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;
