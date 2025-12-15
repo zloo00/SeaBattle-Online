@@ -1,0 +1,225 @@
+{
+  "info": {
+    "name": "SeaBattle Online",
+    "description": "GraphQL requests for the SeaBattle Online API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth - Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation Register($input: RegisterInput!) {\\n  register(input: $input) {\\n    token\\n    user {\\n      id\\n      username\\n      email\\n      wins\\n      losses\\n      gamesPlayed\\n      avatarUrl\\n    }\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"username\": \"demo-user\",\n      \"email\": \"demo@example.com\",\n      \"password\": \"Password123\"\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Auth - Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation Login($input: LoginInput!) {\\n  login(input: $input) {\\n    token\\n    user {\\n      id\\n      username\\n      email\\n      wins\\n      losses\\n      gamesPlayed\\n      avatarUrl\\n    }\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"email\": \"demo@example.com\",\n      \"password\": \"Password123\"\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "User - Me",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query Me {\\n  me {\\n    id\\n    username\\n    email\\n    wins\\n    losses\\n    gamesPlayed\\n    avatarUrl\\n  }\\n}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Ships - My Ships",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query MyShips($roomId: ID!) {\\n  myShips(roomId: $roomId) {\\n    id\\n    playerId\\n    roomId\\n    startX\\n    startY\\n    length\\n    orientation\\n    hits\\n  }\\n}\",\n  \"variables\": {\n    \"roomId\": \"{{roomId}}\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Ships - Place Fleet",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation PlaceShips($input: PlaceShipsInput!) {\\n  placeShips(input: $input) {\\n    id\\n    playerId\\n    roomId\\n    startX\\n    startY\\n    length\\n    orientation\\n    hits\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"roomId\": \"{{roomId}}\",\n      \"ships\": [\n        { \"startX\": 0, \"startY\": 0, \"length\": 4, \"orientation\": \"horizontal\" },\n        { \"startX\": 0, \"startY\": 2, \"length\": 3, \"orientation\": \"horizontal\" },\n        { \"startX\": 5, \"startY\": 2, \"length\": 3, \"orientation\": \"vertical\" },\n        { \"startX\": 2, \"startY\": 5, \"length\": 2, \"orientation\": \"horizontal\" },\n        { \"startX\": 7, \"startY\": 5, \"length\": 2, \"orientation\": \"vertical\" },\n        { \"startX\": 4, \"startY\": 8, \"length\": 2, \"orientation\": \"horizontal\" },\n        { \"startX\": 0, \"startY\": 8, \"length\": 1, \"orientation\": \"horizontal\" },\n        { \"startX\": 2, \"startY\": 8, \"length\": 1, \"orientation\": \"horizontal\" },\n        { \"startX\": 6, \"startY\": 8, \"length\": 1, \"orientation\": \"horizontal\" },\n        { \"startX\": 8, \"startY\": 8, \"length\": 1, \"orientation\": \"horizontal\" }\n      ]\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Messages - List",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query Messages($roomId: ID!) {\\n  messages(roomId: $roomId) {\\n    id\\n    roomId\\n    userId\\n    username\\n    text\\n    timestamp\\n    createdAt\\n    updatedAt\\n  }\\n}\",\n  \"variables\": {\n    \"roomId\": \"{{roomId}}\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Messages - Send",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation SendMessage($input: SendMessageInput!) {\\n  sendMessage(input: $input) {\\n    id\\n    roomId\\n    userId\\n    username\\n    text\\n    timestamp\\n    createdAt\\n    updatedAt\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"roomId\": \"{{roomId}}\",\n      \"text\": \"Hello from Postman!\"\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000"
+    },
+    {
+      "key": "authToken",
+      "value": ""
+    },
+    {
+      "key": "roomId",
+      "value": "replace-with-room-id"
+    }
+  ]
+}
