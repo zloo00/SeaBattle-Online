@@ -6,6 +6,8 @@ export interface AuthUser {
   losses: number;
   gamesPlayed: number;
   avatarUrl?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AuthPayload {

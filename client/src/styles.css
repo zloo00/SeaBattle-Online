@@ -453,6 +453,25 @@ button:hover:not(:disabled) {
   margin-top: 10px;
 }
 
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.stat {
+  background: #f8fbff;
+  border: 1px solid #dce7f7;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f2f57;
+}
+
 .status {
   margin-top: 8px;
   padding: 10px 12px;

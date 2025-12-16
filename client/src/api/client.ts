@@ -1,8 +1,16 @@
-import { AuthPayload, GameRoom, Message, PlaceShipsInput, Ship, Shot } from '../types';
+import {
+  AuthPayload,
+  GameRoom,
+  GameRoomStatus,
+  Message,
+  PlaceShipsInput,
+  Ship,
+  Shot,
+} from '../types';
 import { useAuthStore } from '../store/auth';
 import { createClient } from 'graphql-ws';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/graphql';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/graphql';
 const WS_URL =
   import.meta.env.VITE_WS_URL ||
   (API_URL.startsWith('https')
@@ -68,6 +76,22 @@ const LOGIN_MUTATION = `
         gamesPlayed
         avatarUrl
       }
+    }
+  }
+`;
+
+const ME_QUERY = `
+  query Me {
+    me {
+      id
+      username
+      email
+      wins
+      losses
+      gamesPlayed
+      avatarUrl
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -189,8 +213,8 @@ const SEARCH_ROOMS_QUERY = `
 `;
 
 const GET_MY_ROOMS_QUERY = `
-  query GetMyRooms {
-    getMyRooms {
+  query GetMyRooms($status: GameRoomStatus) {
+    getMyRooms(status: $status) {
       ${ROOM_FIELDS}
     }
   }
@@ -269,6 +293,8 @@ export const register = (input: {
 export const login = (input: { email: string; password: string }) =>
   graphqlRequest<{ login: AuthPayload }>(LOGIN_MUTATION, { input });
 
+export const getMe = () => graphqlRequest<{ me: AuthPayload['user'] | null }>(ME_QUERY);
+
 export const placeShips = (input: PlaceShipsInput) =>
   graphqlRequest<{ placeShips: Ship[] }>(PLACE_SHIPS_MUTATION, { input });
 
@@ -287,8 +313,11 @@ export const getPublicRooms = () =>
 export const searchRooms = (term: string) =>
   graphqlRequest<{ searchRooms: GameRoom[] }>(SEARCH_ROOMS_QUERY, { term });
 
-export const getMyRooms = () =>
-  graphqlRequest<{ getMyRooms: GameRoom[] }>(GET_MY_ROOMS_QUERY);
+export const getMyRooms = (status?: GameRoomStatus) =>
+  graphqlRequest<{ getMyRooms: GameRoom[] }>(
+    GET_MY_ROOMS_QUERY,
+    status ? { status } : undefined
+  );
 
 export const createRoom = (input: { name: string; password?: string }) =>
   graphqlRequest<{ createRoom: GameRoom }>(CREATE_ROOM_MUTATION, { input });

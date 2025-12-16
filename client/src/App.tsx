@@ -6,6 +6,7 @@ import RegisterPage from "./pages/Register";
 import { PlacementModal } from "./components/PlacementModal";
 import GamePage from "./pages/Game";
 import LobbyPage from "./pages/Lobby";
+import ProfilePage from "./pages/Profile";
 
 const Home = () => {
   const { user, logout } = useAuthStore();
@@ -52,6 +53,11 @@ const Home = () => {
                 <Link to="/lobby">
                   <button type="button" className="ghost">
                     Лобби
+                  </button>
+                </Link>
+                <Link to="/profile">
+                  <button type="button" className="ghost">
+                    Профиль
                   </button>
                 </Link>
                 <button
@@ -154,6 +160,14 @@ function App() {
         element={
           <RequireAuth>
             <LobbyPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <RequireAuth>
+            <ProfilePage />
           </RequireAuth>
         }
       />

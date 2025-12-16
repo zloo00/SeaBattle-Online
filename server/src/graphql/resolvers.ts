@@ -444,6 +444,14 @@ export const resolvers = {
           room.status = "finished";
           room.winner = currentUser.id as any;
           room.currentTurn = null;
+          await Promise.all([
+            User.findByIdAndUpdate(currentUser.id, {
+              $inc: { wins: 1, gamesPlayed: 1 }
+            }),
+            User.findByIdAndUpdate(opponentId, {
+              $inc: { losses: 1, gamesPlayed: 1 }
+            })
+          ]);
           winnerDeclared = true;
         }
       }

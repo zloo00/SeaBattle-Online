@@ -58,6 +58,14 @@ server/
    - API defaults to `http://localhost:4000/graphql`.
    - Vite dev server defaults to `http://localhost:5173/` and proxies calls directly to the GraphQL endpoint defined in `VITE_API_URL`.
 
+### Docker Compose
+- Build and run all services (MongoDB + API + client):
+  ```bash
+  docker-compose up --build
+  ```
+- Server is exposed on `http://localhost:4000/graphql` with `/health` for healthchecks.
+- Client is served on `http://localhost:5173/` (env values from `.env` are baked into the build).
+
 ## Environment Variables
 Root `.env` (see `.env.example`) covers both sides:
 
@@ -75,6 +83,14 @@ VITE_WS_URL=ws://localhost:4000/graphql
 - `PORT` must match what the client expects.
 - `VITE_WS_URL` should be `ws://`/`wss://` version of the API URL for subscriptions.
 
+## Seeding demo data
+- Seeds two users (`alice@example.com` / `bob@example.com`, password `password123`), one demo room, fleets for обоих игроков и пару сообщений.
+- Run from `server/`:
+  ```bash
+  npm run seed
+  ```
+- После сидирования войдите под любым из аккаунтов и откройте комнату с ID, который выводится в конце скрипта.
+
 ## npm Scripts
 | Location | Script | Description |
 | --- | --- | --- |
@@ -82,6 +98,7 @@ VITE_WS_URL=ws://localhost:4000/graphql
 |  | `npm run build` | Emit compiled JS to `dist/`. |
 |  | `npm start` | Run compiled build. |
 |  | `npm run lint` | ESLint against `.ts` sources. |
+|  | `npm run seed` | Seed demo users/rooms/ships/messages. |
 | `client` | `npm run dev` | Launch Vite dev server with hot reloading. |
 |  | `npm run build` | Type-check + build production assets. |
 |  | `npm run preview` | Preview built client locally. |
@@ -109,6 +126,7 @@ Authorization is enforced via the `Authorization: Bearer <JWT>` header. Attempts
 - The server enforces ship placement rules in `server/src/validation/shipValidation.ts`, so even if the UI is bypassed invalid layouts are rejected.
 - Messages and ships are scoped per `roomId` and require membership. Ensure you seed at least one `GameRoom` document manually or via Mongo shell while the project is in early stages.
 - `ts-node-dev` reloads on file saves; if you add new environment variables restart the dev server to pick them up.
+- Stats (`wins`, `losses`, `gamesPlayed`) обновляются сервером при завершении партии (`makeShot`), профиль `/profile` подтягивает актуальные значения через `me`.
 
 ## Troubleshooting
 - If the client displays garbled placeholder copy, ensure your terminal/editor is using UTF-8. The source files intentionally keep localized placeholder strings.
@@ -124,3 +142,7 @@ Authorization is enforced via the `Authorization: Bearer <JWT>` header. Attempts
    - `roomUpdated` for turn/status changes
 4. Send a chat message or fire a shot in one browser — the other browser should reflect the change instantly.
 5. Watch the optimistic shot markers: the firing player sees `?` on the target cell immediately, which is replaced by the actual result as soon as the subscription payload arrives.
+
+## Вклад (по фичам)
+- **Студент A**: серверная аутентификация (JWT), правила размещения флота, PubSub/roomUpdated, сидинг данных, подсчёт win/loss.  
+- **Студент B**: клиентские экраны (лобби/игра/профиль), Zustand-сторы, подписки на выстрелы и чат, React Hook Form + Zod для auth форм.
